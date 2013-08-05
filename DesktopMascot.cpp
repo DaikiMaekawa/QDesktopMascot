@@ -3,30 +3,111 @@
 
 namespace mascot{
 
-    DesktopMascot::DesktopMascot(QWidget *parent) :
+    DesktopMascot::DesktopMascot(QWidget *parent) : 
         QGraphicsView(parent),
-        m_centerPixmap(QPixmap("center.png").scaled(50, 50, Qt::IgnoreAspectRatio, Qt::SmoothTransformation))
+        m_flyPixmap(QPixmap("fly.png").scaled(200, 200, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)),
+        m_standPixmap(QPixmap("stand.png").scaled(200, 200, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)),
+        m_blockLauncher(QPixmap("block.png").scaled(100, 100, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)),
+        m_mascotItem(m_standPixmap)
     {
-        setScene(&m_scene);
         initScene();
-        
+        connectSignals();
         setStyleSheet("background:transparent; border: none;");
         setAttribute(Qt::WA_TranslucentBackground);
         setWindowFlags(Qt::FramelessWindowHint);
-        resize(1280, 640);
+        resize(MAX_WINDOW_SIZE_X, MAX_WINDOW_SIZE_Y);
         
+        m_timer.start(100);
+    }
+
+    void DesktopMascot::connectSignals(){
+        connect(&m_timer, SIGNAL(timeout()), this, SLOT(updateStatus()));
     }
 
     void DesktopMascot::initScene(){
         
+        /*
         QGraphicsDropShadowEffect* effect = new QGraphicsDropShadowEffect();
         effect->setColor(QColor(0,0,0));
         effect->setOffset(5, 5);
         effect->setBlurRadius(20);
-        m_centerPixmap.setGraphicsEffect(effect);
-        m_scene.addItem(&m_centerPixmap);
-        m_scene.setSceneRect(0, 0, 1280, 640);
-        m_centerPixmap.setPos(0, 0);
+        m_flyPixmap.setGraphicsEffect(effect);
+        */
+
+        setScene(&m_scene);
+        m_scene.addItem(&m_mascotItem);
+        m_scene.addItem(&m_blockLauncher);
+        m_scene.setSceneRect(0, 0, MAX_WINDOW_SIZE_X, MAX_WINDOW_SIZE_Y);
+        //setPos(QPointF(MAX_WINDOW_SIZE_X / 2.f, MAX_WINDOW_SIZE_Y / 2.f));
+        m_blockLauncher.setPos(QPointF(0, 200));
+        setPos(QPointF(1000, 0));
+    }
+
+    void DesktopMascot::setPos(QPointF pos){
+        const float limitx = std::max<float>(std::min<float>(pos.x(), MAX_WINDOW_SIZE_X - 200), 0);
+        const float limity = std::max<float>(std::min<float>(pos.y(), MAX_WINDOW_SIZE_Y - 200), 0);
+
+        m_mascotItem.setPos(QPointF(limitx, limity));
+    }
+
+    QPointF DesktopMascot::pos(){
+        return m_mascotItem.pos();
+    }
+
+    void DesktopMascot::updateStatus(){
+        if(m_blockLauncher.isCrash(pos())){
+            m_scene.removeItem(&m_blockLauncher);
+        }else{
+            m_scene.addItem(&m_blockLauncher);
+        }
+
+        const Leap::Frame frame = m_controller.frame();
+        std::cout   << "Frame id: "     << frame.id()
+                    << ", timestamp: "  << frame.timestamp()
+                    << ", hands: "      << frame.hands().count()
+                    << ", fingers: "    << frame.fingers().count()
+                    << ", tools: "      << frame.tools().count() << std::endl;
+
+        if(!frame.hands().empty()) {
+            
+            // Get the first hand
+            const Leap::Hand hand = frame.hands()[0];
+
+            // Check if the hand has any fingers
+            const Leap::FingerList fingers = hand.fingers();
+            if (!fingers.empty()) {
+                // Calculate the hand's average finger tip position
+                Leap::Vector avgPos;
+                for (int i = 0; i < fingers.count(); ++i){
+                    avgPos += fingers[i].tipPosition();
+                }
+                
+                avgPos /= (float)fingers.count();
+                std::cout << "Hand has " << fingers.count()
+                          << " fingers, average finger tip position" << avgPos << std::endl;
+            
+            if(fingers.count() > 1){
+                    m_mascotItem.setPixmap(m_flyPixmap);
+
+                    // Get the hand's sphere radius and palm position
+                    std::cout << "Hand sphere radius: " << hand.sphereRadius()
+                              << " mm, palm position: " << hand.palmPosition() << std::endl;
+
+                    // Get the hand's normal vector and direction
+                    const Leap::Vector normal = hand.palmNormal();
+                    const Leap::Vector direction = hand.direction();
+
+                    // Calculate the hand's pitch, roll, and yaw angles
+                    std::cout << "Hand pitch: " << direction.pitch() * Leap::RAD_TO_DEG << " degrees, "
+                              << "roll: "       << normal.roll()     * Leap::RAD_TO_DEG << " degrees, "
+                              << "yaw: "        << direction.yaw()   * Leap::RAD_TO_DEG << " degrees"   << std::endl << std::endl;
+                    
+                    setPos(pos() + QPointF(normal.roll() * -50.f, direction.pitch() * -50.f));
+                }
+            }
+        }else{
+            m_mascotItem.setPixmap(m_standPixmap);
+        }
     }
 
 }; //namespace mascot

@@ -21,21 +21,28 @@ link_directories(
 set(LeapMotion_SRCS
 	main.cpp
 	DesktopMascot.cpp
+	DesktopLauncher.cpp
+	LeapController.cpp
 )
 
 set(LeapMotion_HDRS
 	DesktopMascot.h
+	DesktopLauncher.h
+	LeapController.h
 )
+
+QT4_WRAP_CPP(LeapMotion_MOC ${LeapMotion_HDRS})
 
 add_executable(LeapMotion
 	${LeapMotion_SRCS}
 	${LeapMotion_HDRS}
+	${LeapMotion_MOC}
 )
 
 target_link_libraries(LeapMotion
 	${QT_LIBRARIES}
-#	${LEAP_DIR}/lib/x86/Leap.lib
-#	${LEAP_DIR}/lib/x86/Leapd.lib
+	${LEAP_DIR}/lib/x86/Leap.lib
+	${LEAP_DIR}/lib/x86/Leapd.lib
 )
 
 
