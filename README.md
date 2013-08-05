@@ -1,0 +1,4 @@
+QDesktopMascot
+==============
+
+LeapMotion + DesktopMascot
