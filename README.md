@@ -1,4 +1,4 @@
-QDesktopMascot
-==============
+LeapMotion
+==========
 
-LeapMotion + DesktopMascot
+LeapMotionのチュートリアル
