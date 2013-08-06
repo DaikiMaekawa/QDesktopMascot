@@ -18,10 +18,18 @@ namespace mascot{
             }
         }
         
-        
         std::cout << "isCrash: False" << std::endl;
         return false;
         
+    }
+
+    void DesktopLauncher::setLaunchProgram(const QString &program, const QStringList &arg){
+        m_program = program;
+        m_arg = arg;
+    }
+
+    void DesktopLauncher::launchProgram(){
+        m_proc.start(m_program, m_arg);
     }
 
 }; //namespace mascot

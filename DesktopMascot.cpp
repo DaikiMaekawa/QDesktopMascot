@@ -1,22 +1,28 @@
 #include "DesktopMascot.h"
 #include <iostream>
+#include <fstream>
 
 namespace mascot{
+    
+    static const char * const READ_FILE = "ProgramList.txt";
 
     DesktopMascot::DesktopMascot(QWidget *parent) : 
         QGraphicsView(parent),
         m_flyPixmap(QPixmap("fly.png").scaled(200, 200, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)),
         m_standPixmap(QPixmap("stand.png").scaled(200, 200, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)),
-        m_blockLauncher(QPixmap("block.png").scaled(100, 100, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)),
         m_mascotItem(m_standPixmap)
     {
         initScene();
         connectSignals();
         setStyleSheet("background:transparent; border: none;");
         setAttribute(Qt::WA_TranslucentBackground);
-        setWindowFlags(Qt::FramelessWindowHint);
+        setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
         resize(MAX_WINDOW_SIZE_X, MAX_WINDOW_SIZE_Y);
         
+        m_test = new QLabel(this);
+        m_test->setText("test");
+        m_test->show();
+
         m_timer.start(100);
     }
 
@@ -24,22 +30,37 @@ namespace mascot{
         connect(&m_timer, SIGNAL(timeout()), this, SLOT(updateStatus()));
     }
 
+    void DesktopMascot::initLaunchers(){
+        std::ifstream ifs(mascot::READ_FILE);
+        while(!ifs.eof()){
+            std::string program, arg;
+
+            ifs >> program >> arg;
+            if(!program.empty()){
+                LauncherPtr launcher(new DesktopLauncher(QPixmap("block.png").scaled(100, 100, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+                launcher->setLaunchProgram(program.c_str(), QStringList(arg.c_str()));
+                m_launchers << launcher;
+            }
+        }
+    }
+
     void DesktopMascot::initScene(){
-        
-        /*
+        initLaunchers();
+
         QGraphicsDropShadowEffect* effect = new QGraphicsDropShadowEffect();
         effect->setColor(QColor(0,0,0));
         effect->setOffset(5, 5);
         effect->setBlurRadius(20);
-        m_flyPixmap.setGraphicsEffect(effect);
-        */
+        m_mascotItem.setGraphicsEffect(effect);
 
         setScene(&m_scene);
         m_scene.addItem(&m_mascotItem);
-        m_scene.addItem(&m_blockLauncher);
+        for(int i=0; i < m_launchers.size(); i++){
+            m_scene.addItem(m_launchers[i].get());
+            m_launchers[i]->setPos(QPointF(0, 150 * (i+1)));
+        }
+        
         m_scene.setSceneRect(0, 0, MAX_WINDOW_SIZE_X, MAX_WINDOW_SIZE_Y);
-        //setPos(QPointF(MAX_WINDOW_SIZE_X / 2.f, MAX_WINDOW_SIZE_Y / 2.f));
-        m_blockLauncher.setPos(QPointF(0, 200));
         setPos(QPointF(1000, 0));
     }
 
@@ -55,10 +76,16 @@ namespace mascot{
     }
 
     void DesktopMascot::updateStatus(){
-        if(m_blockLauncher.isCrash(pos())){
-            m_scene.removeItem(&m_blockLauncher);
-        }else{
-            m_scene.addItem(&m_blockLauncher);
+        for(int i=0; i < m_launchers.size(); i++){
+            if(m_launchers[i]->isCrash(pos())){
+                if(m_launchers[i]->isVisible()){
+                    m_launchers[i]->setVisible(false);
+                    m_launchers[i]->launchProgram();
+                    setPos(QPointF(1000, 0));
+                }
+            }else{
+                m_launchers[i]->setVisible(true);
+            }
         }
 
         const Leap::Frame frame = m_controller.frame();
