@@ -2,3 +2,6 @@ LeapMotion
 ==========
 
 LeapMotionのチュートリアル
+
+## License
+MIT
